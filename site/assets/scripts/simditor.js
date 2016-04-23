@@ -14,7 +14,7 @@
   }
 }(this, function ($, SimpleModule, simpleHotkeys, simpleUploader) {
 
-var AlignmentButton, BlockquoteButton, BoldButton, Button, Clipboard, CodeButton, CodePopover, ColorButton, FontScaleButton, Formatter, HrButton, ImageButton, ImagePopover, IndentButton, Indentation, InputManager, ItalicButton, Keystroke, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, StrikethroughButton, TableButton, TitleButton, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util,
+var AlignCenterButton, AlignLeftButton, AlignRightButton, AlignmentButton, BlockquoteButton, BoldButton, Button, Clipboard, CodeButton, CodePopover, ColorButton, FontScaleButton, Formatter, HrButton, HtmlButton, ImageButton, ImagePopover, IndentButton, Indentation, InputManager, ItalicButton, Keystroke, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, StrikethroughButton, TableButton, TitleButton, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util,
   extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   hasProp = {}.hasOwnProperty,
   indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
@@ -1782,6 +1782,10 @@ Util = (function(superClass) {
     return bb.getBlob(mimeString);
   };
 
+  Util.prototype.ucfirst = function(string) {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  };
+
   Util.prototype.throttle = function(func, wait) {
     var args, call, ctx, last, rtn, throttled, timeoutID;
     last = 0;
@@ -1977,9 +1981,9 @@ Toolbar = (function(superClass) {
         throw new Error("simditor: invalid toolbar button " + name);
         continue;
       }
-      this.buttons.push(new this.constructor.buttons[name]({
+      this.buttons[name] = new this.constructor.buttons[name]({
         editor: this.editor
-      }));
+      });
     }
     if (this.opts.toolbarHidden) {
       return this.wrapper.hide();
@@ -1990,6 +1994,16 @@ Toolbar = (function(superClass) {
     var button;
     button = this.list.find('.toolbar-item-' + name).data('button');
     return button != null ? button : null;
+  };
+
+  Toolbar.prototype.execCommand = function(button, param) {
+    if (param == null) {
+      param = null;
+    }
+    if (!this.buttons[button]) {
+      throw new Error("simditor: invalid toolbar button " + button);
+    }
+    return this.buttons[button].command(param);
   };
 
   Toolbar.addButton = function(btn) {
@@ -2445,10 +2459,16 @@ Simditor = (function(superClass) {
 
   Simditor.count = 0;
 
+  Simditor._guid = 0;
+
+  Simditor.EMPTY = '';
+
+  Simditor.callbacks = {};
+
   Simditor.prototype.opts = {
     textarea: null,
     placeholder: '',
-    defaultImage: 'images/image.png',
+    defaultImage: 'assets/images/image.png',
     params: {},
     upload: false,
     indentWidth: 40
@@ -2458,6 +2478,8 @@ Simditor = (function(superClass) {
     var e, editor, form, uploadOpts;
     this.textarea = $(this.opts.textarea);
     this.opts.placeholder = this.opts.placeholder || this.textarea.attr('placeholder');
+    this._guid = (new Date).getTime();
+    this.callbacks = {};
     if (!this.textarea.length) {
       throw new Error('simditor: param textarea is required.');
       return;
@@ -2638,6 +2660,38 @@ Simditor = (function(superClass) {
     });
   };
 
+  Simditor.prototype.guid = function() {
+    return this._guid++;
+  };
+
+  Simditor.prototype.addCallback = function(context, closure) {
+    var key;
+    key = "callback_" + this.guid();
+    this.callbacks[key] = {
+      context: context,
+      closure: closure
+    };
+    return key;
+  };
+
+  Simditor.prototype.callback = function(key, params) {
+    if (!this.callbacks[key]) {
+      throw new Error(key + " is not a valid callback function name.");
+      return;
+    }
+    return this.callbacks[key].closure.call(this.callbacks[key]['context'], params);
+  };
+
+  Simditor.prototype.removeCallback = function(key) {
+    return delete this.callbacks[key];
+  };
+
+  Simditor.prototype.getContentAsync = function(callbackName) {
+    return IcarusBridge.callback(callbackName, JSON.stringify({
+      content: this.sync()
+    }));
+  };
+
   Simditor.prototype.destroy = function() {
     this.triggerHandler('destroy');
     this.textarea.closest('form').off('.simditor .simditor-' + this.id);
@@ -2679,8 +2733,8 @@ Simditor.i18n = {
     'linkText': '链接文字',
     'linkUrl': '链接地址',
     'linkTarget': '打开方式',
-    'openLinkInCurrentWindow': '在新窗口中打开',
-    'openLinkInNewWindow': '在当前窗口中打开',
+    'openLinkInCurrentWindow': '在当前窗口中打开',
+    'openLinkInNewWindow': '在新窗口中打开',
     'removeLink': '移除链接',
     'ol': '有序列表',
     'ul': '无序列表',
@@ -2943,6 +2997,9 @@ Button = (function(superClass) {
     if (active === this.active) {
       return;
     }
+    console.log("active", active);
+    console.log(this);
+    IcarusBridge.setButtonActivated(this.name, active);
     this.active = active;
     return this.el.toggleClass('active', this.active);
   };
@@ -2951,6 +3008,7 @@ Button = (function(superClass) {
     if (disabled === this.disabled) {
       return;
     }
+    IcarusBridge.setButtonEnabled(this.name, !disabled);
     this.disabled = disabled;
     return this.el.toggleClass('disabled', this.disabled);
   };
@@ -3233,6 +3291,57 @@ TitleButton = (function(superClass) {
 })(Button);
 
 Simditor.Toolbar.addButton(TitleButton);
+
+HtmlButton = (function(superClass) {
+  extend(HtmlButton, superClass);
+
+  function HtmlButton() {
+    return HtmlButton.__super__.constructor.apply(this, arguments);
+  }
+
+  HtmlButton.prototype.name = 'html';
+
+  HtmlButton.prototype.icon = 'html5';
+
+  HtmlButton.prototype.disableTag = 'pre';
+
+  HtmlButton.prototype._init = function() {
+    return HtmlButton.__super__._init.call(this);
+  };
+
+  HtmlButton.prototype.insertHtml = function(html) {
+    var $brNode, $newBlock, $node, range;
+    range = this.editor.selection.range();
+    console.log("insertHtml", range);
+    $node = $(html);
+    if (this.editor.selection.blockNodes().length > 0) {
+      range.insertNode($node[0]);
+    } else {
+      $newBlock = $('<p/>').append($node);
+      range.insertNode($newBlock[0]);
+    }
+    $brNode = $('<br>')[0];
+    range.insertNode($brNode);
+    return range.selectNode($brNode);
+  };
+
+  HtmlButton.prototype.command = function() {
+    var callback_id;
+    callback_id = this.editor.addCallback(this, function(params) {
+      return this.insertHtml(params.content);
+    });
+    IcarusBridge.popover(this.name, JSON.stringify({
+      content: ""
+    }), callback_id);
+    this.editor.focus();
+    return this.editor.trigger('valuechanged');
+  };
+
+  return HtmlButton;
+
+})(Button);
+
+Simditor.Toolbar.addButton(HtmlButton);
 
 FontScaleButton = (function(superClass) {
   extend(FontScaleButton, superClass);
@@ -3758,7 +3867,7 @@ CodeButton = (function(superClass) {
 
   CodeButton.prototype.htmlTag = 'pre';
 
-  CodeButton.prototype.disableTag = 'ul, ol, table';
+  CodeButton.prototype.disableTag = 'ul, ol, table, pre, hr';
 
   CodeButton.prototype._init = function() {
     CodeButton.__super__._init.call(this);
@@ -3781,10 +3890,7 @@ CodeButton = (function(superClass) {
   CodeButton.prototype.render = function() {
     var args;
     args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-    CodeButton.__super__.render.apply(this, args);
-    return this.popover = new CodePopover({
-      button: this
-    });
+    return CodeButton.__super__.render.apply(this, args);
   };
 
   CodeButton.prototype._checkMode = function() {
@@ -3803,12 +3909,7 @@ CodeButton = (function(superClass) {
     this._checkMode();
     CodeButton.__super__._status.call(this);
     if (this.inlineMode) {
-      return;
-    }
-    if (this.active) {
-      return this.popover.show(this.node);
-    } else {
-      return this.popover.hide();
+
     }
   };
 
@@ -4043,18 +4144,26 @@ LinkButton = (function(superClass) {
   LinkButton.prototype.render = function() {
     var args;
     args = 1 <= arguments.length ? slice.call(arguments, 0) : [];
-    LinkButton.__super__.render.apply(this, args);
-    return this.popover = new LinkPopover({
-      button: this
-    });
+    return LinkButton.__super__.render.apply(this, args);
   };
 
   LinkButton.prototype._status = function() {
+    var callback_id;
     LinkButton.__super__._status.call(this);
     if (this.active && !this.editor.selection.rangeAtEndOf(this.node)) {
-      return this.popover.show(this.node);
-    } else {
-      return this.popover.hide();
+      callback_id = this.editor.addCallback(this, function(params) {
+        console.log(params);
+        this.node.attr('href', params.url);
+        this.node.attr('target', params.target);
+        this.node.text(params.text);
+        this.editor.inputManager.throttledValueChanged();
+        return this.editor.removeCallback(_callback_id);
+      });
+      IcarusBridge.popover(this.name, JSON.stringify({
+        text: this.node.text(),
+        url: this.node.attr('href')
+      }), callback_id);
+      return console.log("popover:" + this.name);
     }
   };
 
@@ -4080,17 +4189,6 @@ LinkButton = (function(superClass) {
         range.insertNode($newBlock[0]);
       }
       range.selectNodeContents($link[0]);
-      this.popover.one('popovershow', (function(_this) {
-        return function() {
-          if (linkText) {
-            _this.popover.urlEl.focus();
-            return _this.popover.urlEl[0].select();
-          } else {
-            _this.popover.textEl.focus();
-            return _this.popover.textEl[0].select();
-          }
-        };
-      })(this));
     }
     this.editor.selection.range(range);
     return this.editor.trigger('valuechanged');
@@ -4219,25 +4317,24 @@ ImageButton = (function(superClass) {
         this.menu = false;
       }
     } else {
-      if (this.editor.uploader != null) {
-        this.menu = [
-          {
-            name: 'upload-image',
-            text: this._t('uploadImage')
-          }, {
-            name: 'external-image',
-            text: this._t('externalImage')
-          }
-        ];
-      } else {
-        this.menu = false;
-      }
+      this.menu = false;
     }
     this.defaultImage = this.editor.opts.defaultImage;
     this.editor.body.on('click', 'img:not([data-non-image])', (function(_this) {
       return function(e) {
-        var $img, range;
+        var $img, callbackId, range;
         $img = $(e.currentTarget);
+        callbackId = _this.editor.addCallback(_this, function(params) {
+          console.log('callback.image', params);
+          if (params.src !== $img.attr('src')) {
+            this.loadImage($img, params.src);
+          }
+          return $img.attr('alt', params.alt);
+        });
+        IcarusBridge.popover(_this.name, JSON.stringify({
+          src: $img.attr('src'),
+          alt: $img.attr('alt')
+        }), callbackId);
         range = document.createRange();
         range.selectNode($img[0]);
         _this.editor.selection.range(range);
@@ -4260,9 +4357,9 @@ ImageButton = (function(superClass) {
         $contents = $(range.cloneContents()).contents();
         if ($contents.length === 1 && $contents.is('img:not([data-non-image])')) {
           $img = $(range.startContainer).contents().eq(range.startOffset);
-          return _this.popover.show($img);
+          return console.log("popover", $img);
         } else {
-          return _this.popover.hide();
+
         }
       };
     })(this));
@@ -4371,20 +4468,7 @@ ImageButton = (function(superClass) {
           file.img = $img;
         }
         $img.addClass('uploading');
-        $img.data('file', file);
-        return _this.editor.uploader.readImageFile(file.obj, function(img) {
-          var src;
-          if (!$img.hasClass('uploading')) {
-            return;
-          }
-          src = img ? img.src : _this.defaultImage;
-          return _this.loadImage($img, src, function() {
-            if (_this.popover.active) {
-              _this.popover.refresh();
-              return _this.popover.srcEl.val(_this._t('uploading')).prop('disabled', true);
-            }
-          });
-        });
+        return $img.data('file', file);
       };
     })(this));
     uploadProgress = $.proxy(this.editor.util.throttle(function(e, file, loaded, total) {
@@ -4436,7 +4520,7 @@ ImageButton = (function(superClass) {
         } else {
           img_path = result.file_path;
         }
-        _this.loadImage($img, img_path, function() {
+        return _this.loadImage($img, img_path, function() {
           var $mask;
           $img.removeData('file');
           $img.removeClass('uploading').removeClass('loading');
@@ -4450,10 +4534,6 @@ ImageButton = (function(superClass) {
             return _this.editor.uploader.trigger('uploadready', [file, result]);
           }
         });
-        if (_this.popover.active) {
-          _this.popover.srcEl.prop('disabled', false);
-          return _this.popover.srcEl.val(result.file_path);
-        }
       };
     })(this));
     return this.editor.uploader.on('uploaderror', (function(_this) {
@@ -4489,10 +4569,6 @@ ImageButton = (function(superClass) {
           }
           return $img.removeData('mask');
         });
-        if (_this.popover.active) {
-          _this.popover.srcEl.prop('disabled', false);
-          _this.popover.srcEl.val(_this.defaultImage);
-        }
         _this.editor.trigger('valuechanged');
         if (_this.editor.body.find('img.uploading').length < 1) {
           return _this.editor.uploader.trigger('uploadready', [file, result]);
@@ -4539,8 +4615,6 @@ ImageButton = (function(superClass) {
         height = img.height;
         $img.attr({
           src: src,
-          width: width,
-          height: height,
           'data-image-size': width + ',' + height
         }).removeClass('loading');
         if ($img.hasClass('uploading')) {
@@ -4585,18 +4659,16 @@ ImageButton = (function(superClass) {
 
   ImageButton.prototype.command = function(src) {
     var $img;
+    console.log("command", "image");
     $img = this.createImage();
-    return this.loadImage($img, src || this.defaultImage, (function(_this) {
+    console.log("command", $img);
+    this.loadImage($img, src || this.defaultImage, (function(_this) {
       return function() {
         _this.editor.trigger('valuechanged');
-        _this.editor.util.reflow($img);
-        $img.click();
-        return _this.popover.one('popovershow', function() {
-          _this.popover.srcEl.focus();
-          return _this.popover.srcEl[0].select();
-        });
+        return _this.editor.util.reflow($img);
       };
     })(this));
+    return console.log("command", "image loaded");
   };
 
   return ImageButton;
@@ -4859,6 +4931,8 @@ IndentButton = (function(superClass) {
 
   IndentButton.prototype.icon = 'indent';
 
+  IndentButton.prototype.disableTag = 'pre';
+
   IndentButton.prototype._init = function() {
     this.title = this._t(this.name) + ' (Tab)';
     return IndentButton.__super__._init.call(this);
@@ -4886,6 +4960,8 @@ OutdentButton = (function(superClass) {
   OutdentButton.prototype.name = 'outdent';
 
   OutdentButton.prototype.icon = 'outdent';
+
+  OutdentButton.prototype.disableTag = 'pre';
 
   OutdentButton.prototype._init = function() {
     this.title = this._t(this.name) + ' (Shift + Tab)';
@@ -4916,6 +4992,8 @@ HrButton = (function(superClass) {
   HrButton.prototype.icon = 'minus';
 
   HrButton.prototype.htmlTag = 'hr';
+
+  HrButton.prototype.disableTag = 'pre';
 
   HrButton.prototype._status = function() {};
 
@@ -5505,28 +5583,6 @@ AlignmentButton = (function(superClass) {
 
   AlignmentButton.prototype.htmlTag = 'p, h1, h2, h3, h4, td, th';
 
-  AlignmentButton.prototype._init = function() {
-    this.menu = [
-      {
-        name: 'left',
-        text: this._t('alignLeft'),
-        icon: 'align-left',
-        param: 'left'
-      }, {
-        name: 'center',
-        text: this._t('alignCenter'),
-        icon: 'align-center',
-        param: 'center'
-      }, {
-        name: 'right',
-        text: this._t('alignRight'),
-        icon: 'align-right',
-        param: 'right'
-      }
-    ];
-    return AlignmentButton.__super__._init.call(this);
-  };
-
   AlignmentButton.prototype.setActive = function(active, align) {
     if (align == null) {
       align = 'left';
@@ -5535,16 +5591,24 @@ AlignmentButton = (function(superClass) {
       align = 'left';
     }
     if (align === 'left') {
-      AlignmentButton.__super__.setActive.call(this, false);
+      this.editor.toolbar.buttons['alignLeft'].setActive(false);
+      this.editor.toolbar.buttons['alignCenter'].setActive(false);
+      this.editor.toolbar.buttons['alignRight'].setActive(false);
+    } else if (align === 'center') {
+      this.editor.toolbar.buttons['alignLeft'].setActive(false);
+      this.editor.toolbar.buttons['alignCenter'].setActive(active);
+      this.editor.toolbar.buttons['alignRight'].setActive(false);
+    } else if (align === 'right') {
+      this.editor.toolbar.buttons['alignLeft'].setActive(false);
+      this.editor.toolbar.buttons['alignCenter'].setActive(false);
+      this.editor.toolbar.buttons['alignRight'].setActive(active);
     } else {
-      AlignmentButton.__super__.setActive.call(this, active);
+      align === 'right';
     }
     this.el.removeClass('align-left align-center align-right');
     if (active) {
-      this.el.addClass('align-' + align);
+      return this.el.addClass('align-' + align);
     }
-    this.setIcon('align-' + align);
-    return this.menuEl.find('.menu-item').show().end().find('.menu-item-' + align).hide();
   };
 
   AlignmentButton.prototype._status = function() {
@@ -5573,7 +5637,97 @@ AlignmentButton = (function(superClass) {
 
 })(Button);
 
+AlignLeftButton = (function(superClass) {
+  extend(AlignLeftButton, superClass);
+
+  function AlignLeftButton() {
+    return AlignLeftButton.__super__.constructor.apply(this, arguments);
+  }
+
+  AlignLeftButton.prototype.name = "alignLeft";
+
+  AlignLeftButton.prototype.icon = 'align-left';
+
+  AlignLeftButton.prototype.disableTag = 'pre';
+
+  AlignLeftButton.prototype.command = function() {
+    return this.editor.toolbar.buttons['alignment'].command('left');
+  };
+
+  AlignLeftButton.prototype._status = function() {
+    this._disableStatus();
+    if (this.disabled) {
+
+    }
+  };
+
+  return AlignLeftButton;
+
+})(Button);
+
+AlignRightButton = (function(superClass) {
+  extend(AlignRightButton, superClass);
+
+  function AlignRightButton() {
+    return AlignRightButton.__super__.constructor.apply(this, arguments);
+  }
+
+  AlignRightButton.prototype.name = "alignRight";
+
+  AlignRightButton.prototype.icon = 'align-right';
+
+  AlignRightButton.prototype.disableTag = 'pre';
+
+  AlignRightButton.prototype.command = function() {
+    return this.editor.toolbar.buttons['alignment'].command('right');
+  };
+
+  AlignRightButton.prototype._status = function() {
+    this._disableStatus();
+    if (this.disabled) {
+
+    }
+  };
+
+  return AlignRightButton;
+
+})(Button);
+
+AlignCenterButton = (function(superClass) {
+  extend(AlignCenterButton, superClass);
+
+  function AlignCenterButton() {
+    return AlignCenterButton.__super__.constructor.apply(this, arguments);
+  }
+
+  AlignCenterButton.prototype.name = "alignCenter";
+
+  AlignCenterButton.prototype.icon = 'align-center';
+
+  AlignCenterButton.prototype.disableTag = 'pre';
+
+  AlignCenterButton.prototype.command = function() {
+    return this.editor.toolbar.buttons['alignment'].command('center');
+  };
+
+  AlignCenterButton.prototype._status = function() {
+    this._disableStatus();
+    if (this.disabled) {
+
+    }
+  };
+
+  return AlignCenterButton;
+
+})(Button);
+
 Simditor.Toolbar.addButton(AlignmentButton);
+
+Simditor.Toolbar.addButton(AlignLeftButton);
+
+Simditor.Toolbar.addButton(AlignRightButton);
+
+Simditor.Toolbar.addButton(AlignCenterButton);
 
 return Simditor;
 

@@ -11,16 +11,31 @@ class LinkButton extends Button
 
   render: (args...) ->
     super args...
-    @popover = new LinkPopover
-      button: @
+    #@popover = new LinkPopover
+    #  button: @
 
   _status: ->
     super()
 
     if @active and !@editor.selection.rangeAtEndOf(@node)
-      @popover.show @node
-    else
-      @popover.hide()
+      callback_id = @editor.addCallback this, (params)->
+        console.log params
+        @node.attr 'href', params.url
+        @node.attr 'target', params.target
+        @node.text params.text
+        @editor.inputManager.throttledValueChanged()
+        @editor.removeCallback(_callback_id)
+
+      IcarusBridge.popover @name,
+        JSON.stringify
+          text: @node.text()
+          url: @node.attr('href')
+        callback_id
+
+      console.log("popover:" + @name);
+      #@popover.show @node
+    #else
+      #@popover.hide()
 
   command: ->
     range = @editor.selection.range()
@@ -46,13 +61,13 @@ class LinkButton extends Button
 
       range.selectNodeContents $link[0]
 
-      @popover.one 'popovershow', =>
-        if linkText
-          @popover.urlEl.focus()
-          @popover.urlEl[0].select()
-        else
-          @popover.textEl.focus()
-          @popover.textEl[0].select()
+      #@popover.one 'popovershow', =>
+      #  if linkText
+      #    @popover.urlEl.focus()
+      #    @popover.urlEl[0].select()
+      #  else
+      #    @popover.textEl.focus()
+      #    @popover.textEl[0].select()
 
     @editor.selection.range range
     @editor.trigger 'valuechanged'

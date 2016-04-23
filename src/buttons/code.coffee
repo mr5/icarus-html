@@ -7,7 +7,7 @@ class CodeButton extends Button
 
   htmlTag: 'pre'
 
-  disableTag: 'ul, ol, table'
+  disableTag: 'ul, ol, table, pre, hr'
 
   _init: ->
     super()
@@ -22,8 +22,8 @@ class CodeButton extends Button
 
   render: (args...) ->
     super args...
-    @popover = new CodePopover
-      button: @
+    #@popover = new CodePopover
+    #  button: @
 
   _checkMode: ->
     range = @editor.selection.range()
@@ -41,10 +41,10 @@ class CodeButton extends Button
     super()
 
     return if @inlineMode
-    if @active
-      @popover.show(@node)
-    else
-      @popover.hide()
+    #if @active
+    #  @popover.show(@node)
+    #else
+    #  @popover.hide()
 
   decorate: ($pre) ->
     $code = $pre.find('> code')

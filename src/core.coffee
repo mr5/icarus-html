@@ -1,4 +1,3 @@
-
 class Simditor extends SimpleModule
   @connect Util
   @connect InputManager
@@ -11,11 +10,14 @@ class Simditor extends SimpleModule
   @connect Clipboard
 
   @count: 0
+  @_guid: 0
+  @EMPTY: ''
+  @callbacks: {}
 
   opts:
     textarea: null
     placeholder: ''
-    defaultImage: 'images/image.png'
+    defaultImage: 'assets/images/image.png'
     params: {}
     upload: false
     indentWidth: 40
@@ -23,7 +25,8 @@ class Simditor extends SimpleModule
   _init: ->
     @textarea = $(@opts.textarea)
     @opts.placeholder = @opts.placeholder || @textarea.attr('placeholder')
-
+    @_guid = (new Date).getTime()
+    @callbacks = {}
     unless @textarea.length
       throw new Error 'simditor: param textarea is required.'
       return
@@ -32,7 +35,7 @@ class Simditor extends SimpleModule
     if editor?
       editor.destroy()
 
-    @id = ++ Simditor.count
+    @id = ++Simditor.count
     @_render()
 
     if simpleHotkeys
@@ -72,7 +75,7 @@ class Simditor extends SimpleModule
         document.execCommand 'enableInlineTableEditing', false, false
       catch e
 
-  _tpl:"""
+  _tpl: """
     <div class="simditor">
       <div class="simditor-wrapper">
         <div class="simditor-placeholder"></div>
@@ -87,7 +90,7 @@ class Simditor extends SimpleModule
     @wrapper = @el.find '.simditor-wrapper'
     @body = @wrapper.find '.simditor-body'
     @placeholderEl = @wrapper.find('.simditor-placeholder')
-      .append(@opts.placeholder)
+    .append(@opts.placeholder)
 
     @el.data 'simditor', @
     @wrapper.append(@textarea)
@@ -111,10 +114,11 @@ class Simditor extends SimpleModule
         }).insertAfter(@textarea)
 
   _placeholder: ->
-    children = @body.children()
-    if children.length == 0 or (children.length == 1 and
-        @util.isEmptyNode(children) and
-        parseInt(children.css('margin-left') || 0) < @opts.indentWidth)
+    children = @body.children();
+    if children.length == 0 or (
+      children.length == 1 and
+      @util.isEmptyNode(children) and
+      parseInt(children.css('margin-left') || 0) < @opts.indentWidth)
       @placeholderEl.show()
     else
       @placeholderEl.hide()
@@ -187,20 +191,40 @@ class Simditor extends SimpleModule
     @el.find('.simditor-popover').each (i, popover) ->
       popover = $(popover).data('popover')
       popover.hide() if popover.active
+  guid: ()->
+    return @_guid++;
+  addCallback: (context, closure)->
+    key = "callback_" + @guid()
+    @callbacks[key] =
+      context: context,
+      closure: closure
+    return key
 
+  callback: (key, params)->
+    unless @callbacks[key]
+      throw new Error("#{key} is not a valid callback function name.");
+      return;
+    @callbacks[key].closure.call(@callbacks[key]['context'], params)
+
+  removeCallback: (key)->
+    delete @callbacks[key]
+  getContentAsync:(callbackName)->
+    IcarusBridge.callback callbackName,
+      JSON.stringify
+        content: @sync()
   destroy: ->
     @triggerHandler 'destroy'
 
     @textarea.closest('form')
-      .off('.simditor .simditor-' + @id)
+    .off('.simditor .simditor-' + @id)
 
     @selection.clear()
     @inputManager.focused = false
 
     @textarea.insertBefore(@el)
-      .hide()
-      .val('')
-      .removeData 'simditor'
+    .hide()
+    .val('')
+    .removeData 'simditor'
 
     @el.remove()
     $(document).off '.simditor-' + @id

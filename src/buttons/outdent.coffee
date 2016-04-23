@@ -5,6 +5,8 @@ class OutdentButton extends Button
 
   icon: 'outdent'
 
+  disableTag: 'pre'
+
   _init: ->
     @title = @_t(@name) + ' (Shift + Tab)'
     super()

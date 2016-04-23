@@ -7,7 +7,7 @@
     if (mobilecheck()) {
       toolbar = mobileToolbar;
     }
-    editor = new Simditor({
+    document.editor = editor = new Simditor({
       textarea: $('#txt-content'),
       placeholder: '这里输入文字...',
       toolbar: toolbar,

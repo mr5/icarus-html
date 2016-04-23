@@ -1,4 +1,3 @@
-
 class Toolbar extends SimpleModule
 
   @pluginName: 'Toolbar'
@@ -63,13 +62,13 @@ class Toolbar extends SimpleModule
 
         if scrollTop <= topEdge or scrollTop >= bottomEdge
           @editor.wrapper.removeClass('toolbar-floating')
-            .css('padding-top', '')
+          .css('padding-top', '')
           if @editor.util.os.mobile
             @wrapper.css 'top', @opts.toolbarFloatOffset
         else
           floatInitialized ||= initToolbarFloat()
           @editor.wrapper.addClass('toolbar-floating')
-            .css('padding-top', toolbarHeight)
+          .css('padding-top', toolbarHeight)
           if @editor.util.os.mobile
             @wrapper.css 'top', scrollTop - topEdge + @opts.toolbarFloatOffset
 
@@ -93,7 +92,7 @@ class Toolbar extends SimpleModule
         throw new Error "simditor: invalid toolbar button #{name}"
         continue
 
-      @buttons.push new @constructor.buttons[name]
+      @buttons[name] = new @constructor.buttons[name]
         editor: @editor
 
     @wrapper.hide() if @opts.toolbarHidden
@@ -101,7 +100,10 @@ class Toolbar extends SimpleModule
   findButton: (name) ->
     button = @list.find('.toolbar-item-' + name).data('button')
     button ? null
-
+  execCommand: (button, param = null)->
+    unless @buttons[button]
+      throw new Error "simditor: invalid toolbar button #{button}"
+    @buttons[button].command(param)
   @addButton: (btn) ->
     @buttons[btn::name] = btn
 

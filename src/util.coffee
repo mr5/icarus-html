@@ -1,4 +1,3 @@
-
 class Util extends SimpleModule
 
   @pluginName: 'Util'
@@ -23,8 +22,7 @@ class Util extends SimpleModule
     if /Mobi/.test navigator.appVersion
       os.mobile = true
 
-    os
-  )()
+    os)()
 
   browser: (->
     ua = navigator.userAgent
@@ -54,12 +52,11 @@ class Util extends SimpleModule
       firefox: true
       version: ua.match(/firefox\/(\d+(\.\d+)?)/i)?[1] * 1
     else
-      {}
-  )()
+      {})()
 
   support: do ->
     onselectionchange: do ->
-      # NOTE: not working on firefox
+# NOTE: not working on firefox
       onselectionchange = document.onselectionchange
       if onselectionchange != undefined
         try
@@ -70,15 +67,15 @@ class Util extends SimpleModule
           document.onselectionchange = onselectionchange
       false
     oninput: do ->
-      # NOTE: `oninput` event not working on contenteditable on IE
-      # `document` wouldn't return undefined of this event,
-      # for it's exists but not for contenteditable.
-      # So we have to block the whole browser for Simditor.
+# NOTE: `oninput` event not working on contenteditable on IE
+# `document` wouldn't return undefined of this event,
+# for it's exists but not for contenteditable.
+# So we have to block the whole browser for Simditor.
       not /(msie|trident)/i.test(navigator.userAgent)
 
 
-  # force element to reflow, about reflow:
-  # http://blog.letitialew.com/post/30425074101/repaints-and-reflows-manipulating-the-dom-responsibly
+# force element to reflow, about reflow:
+# http://blog.letitialew.com/post/30425074101/repaints-and-reflows-manipulating-the-dom-responsibly
   reflow: (el = document) ->
     $(el)[0].offsetHeight
 
@@ -94,7 +91,7 @@ class Util extends SimpleModule
   isDecoratedNode: (node) ->
     $(node).is('[class^="simditor-"]')
 
-  blockNodes: ["div","p","ul","ol","li","blockquote","hr","pre","h1","h2","h3",
+  blockNodes: ["div", "p", "ul", "ol", "li", "blockquote", "hr", "pre", "h1", "h2", "h3",
     "h4", "h5", "table"]
 
   isBlockNode: (node) ->
@@ -109,24 +106,23 @@ class Util extends SimpleModule
     switch node.nodeType
       when 7, 10 then 0
       when 3, 8 then node.length
-      else node.childNodes.length
+      else
+        node.childNodes.length
 
-  # convert base64 data url to blob object
-  # for pasting images in firefox and IE11
+# convert base64 data url to blob object
+# for pasting images in firefox and IE11
   dataURLtoBlob: (dataURL) ->
     hasBlobConstructor = window.Blob && (->
       try
         return Boolean(new Blob())
       catch e
-        return false
-    )()
+        return false)()
 
     hasArrayBufferViewSupport = hasBlobConstructor && window.Uint8Array && (->
       try
         return new Blob([new Uint8Array(100)]).size == 100
       catch e
-        return false
-    )()
+        return false)()
 
     BlobBuilder = window.BlobBuilder || window.WebKitBlobBuilder ||
       window.MozBlobBuilder || window.MSBlobBuilder;
@@ -136,10 +132,10 @@ class Util extends SimpleModule
       return false
 
     if dataURL.split(',')[0].indexOf('base64') >= 0
-      # Convert base64 to raw binary data held in a string:
+# Convert base64 to raw binary data held in a string:
       byteString = atob(dataURL.split(',')[1])
     else
-      # Convert base64/URLEncoded data component to raw binary data:
+# Convert base64/URLEncoded data component to raw binary data:
       byteString = decodeURIComponent(dataURL.split(',')[1])
 
     # Write the bytes of the string to an ArrayBuffer:
@@ -157,6 +153,9 @@ class Util extends SimpleModule
     bb = new BlobBuilder()
     bb.append(arrayBuffer)
     bb.getBlob(mimeString)
+
+  ucfirst: (string) ->
+    string.charAt(0).toUpperCase() + string.slice(1);
 
   throttle: (func, wait) ->
     last = 0

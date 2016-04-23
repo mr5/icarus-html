@@ -5,6 +5,9 @@ class IndentButton extends Button
 
   icon: 'indent'
 
+  disableTag: 'pre'
+
+
   _init: ->
     @title = @_t(@name) + ' (Tab)'
     super()

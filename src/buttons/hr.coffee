@@ -1,4 +1,3 @@
-
 class HrButton extends Button
 
   name: 'hr'
@@ -6,6 +5,7 @@ class HrButton extends Button
   icon: 'minus'
 
   htmlTag: 'hr'
+  disableTag: 'pre'
 
   _status: ->
 

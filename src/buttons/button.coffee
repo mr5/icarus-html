@@ -1,4 +1,3 @@
-
 class Button extends SimpleModule
 
   _tpl:
@@ -46,8 +45,8 @@ class Button extends SimpleModule
 
       if @menu
         @wrapper.toggleClass('menu-on')
-          .siblings('li')
-          .removeClass('menu-on')
+        .siblings('li')
+        .removeClass('menu-on')
 
         if @wrapper.is('.menu-on')
           exceed = @menuWrapper.offset().left + @menuWrapper.outerWidth() + 5 -
@@ -107,17 +106,17 @@ class Button extends SimpleModule
 
   setIcon: (icon) ->
     @el.find('span')
-      .removeClass()
-      .addClass(@iconClassOf icon)
-      .text(@text)
+    .removeClass()
+    .addClass(@iconClassOf icon)
+    .text(@text)
 
   render: ->
     @wrapper = $(@_tpl.item).appendTo @editor.toolbar.list
     @el = @wrapper.find 'a.toolbar-item'
 
     @el.attr('title', @title)
-      .addClass("toolbar-item-#{@name}")
-      .data('button', @)
+    .addClass("toolbar-item-#{@name}")
+    .data('button', @)
 
     @setIcon @icon
 
@@ -138,11 +137,11 @@ class Button extends SimpleModule
 
       $menuItemEl = $(@_tpl.menuItem).appendTo @menuEl
       $menuBtnEl = $menuItemEl.find('a.menu-item')
-        .attr(
-          'title': menuItem.title ? menuItem.text,
-          'data-param': menuItem.param
-        )
-        .addClass('menu-item-' + menuItem.name)
+      .attr(
+        'title': menuItem.title ? menuItem.text,
+        'data-param': menuItem.param
+      )
+      .addClass('menu-item-' + menuItem.name)
       if menuItem.icon
         $menuBtnEl.find('span').addClass @iconClassOf menuItem.icon
       else
@@ -150,11 +149,17 @@ class Button extends SimpleModule
 
   setActive: (active) ->
     return if active == @active
+    console.log("active", active);
+    console.log(@);
+    IcarusBridge.setButtonActivated(@name, active);
+
     @active = active
     @el.toggleClass('active', @active)
 
   setDisabled: (disabled) ->
     return if disabled == @disabled
+    IcarusBridge.setButtonEnabled(@name, !disabled);
+
     @disabled = disabled
     @el.toggleClass('disabled', @disabled)
 
