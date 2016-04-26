@@ -1,5 +1,4 @@
 module.exports = (grunt) ->
-
   grunt.initConfig
 
     pkg: grunt.file.readJSON 'package.json'
@@ -23,6 +22,7 @@ module.exports = (grunt) ->
             'src/core.coffee'
             'src/i18n.coffee'
             'src/buttons/button.coffee'
+            'src/buttons/mention.coffee'
             'src/buttons/popover.coffee'
             'src/buttons/title.coffee'
             'src/buttons/html.coffee'
@@ -72,15 +72,6 @@ module.exports = (grunt) ->
           sourcemap: 'none'
         files:
           'styles/simditor.css': 'styles/simditor.scss'
-      site:
-        options:
-          style: 'expanded'
-          bundleExec: true
-          sourcemap: 'none'
-        files:
-          'site/assets/styles/app.css': 'site/assets/_sass/app.scss'
-          'site/assets/styles/mobile.css': 'site/assets/_sass/mobile.scss'
-
     umd:
       all:
         src: 'lib/simditor.js'
@@ -141,9 +132,12 @@ module.exports = (grunt) ->
           src: 'vendor/bower/simple-hotkeys/lib/hotkeys.js',
           dest: 'package/scripts/hotkeys.js'
         }, {
+          src: 'site/editor.html',
+          dest: 'package/editor.html'
+        }, {
           expand: true,
           flatten: true
-          src: 'styles/*',
+          src: ['styles/*.css', 'styles/*.ttf'],
           dest: 'package/styles/'
         }, {
           src: 'site/assets/images/image.png',
@@ -153,16 +147,16 @@ module.exports = (grunt) ->
     watch:
       styles:
         files: ['styles/*.scss']
-        tasks: ['sass:simditor', 'copy:styles', 'jekyll']
+        tasks: ['sass:simditor', 'copy:styles', 'jekyll', 'package']
       scripts:
-        files: ['src/*.coffee', 'src/buttons/*.coffee']
-        tasks: ['coffee:simditor', 'umd', 'copy:scripts', 'jekyll']
-      siteStyles:
-        files: ['site/assets/_sass/*.scss']
-        tasks: ['sass:site', 'jekyll']
-      siteScripts:
-        files: ['site/assets/_coffee/*.coffee']
-        tasks: ['coffee:site', 'jekyll']
+        files: ['src/*.coffee', 'src/buttons/*.coffee', 'site/editor.html']
+        tasks: ['coffee:simditor', 'umd', 'copy:scripts', 'jekyll', 'package']
+#      siteStyles:
+#        files: ['site/assets/_sass/*.scss']
+#        tasks: ['sass:site', 'jekyll']
+#      siteScripts:
+#        files: ['site/assets/_coffee/*.coffee']
+#        tasks: ['coffee:site', 'jekyll']
       jekyll:
         files: ['site/**/*.html', 'site/**/*.md', 'site/**/*.yml']
         tasks: ['jekyll']
@@ -261,8 +255,9 @@ module.exports = (grunt) ->
   grunt.loadNpmTasks 'grunt-curl'
 
   grunt.registerTask 'default', ['site', 'express', 'watch']
-  grunt.registerTask 'site', ['sass', 'coffee', 'umd', 'copy:vendor', 'copy:scripts', 'copy:styles', 'usebanner', 'jekyll']
+  grunt.registerTask 'site', ['sass', 'coffee', 'umd', 'copy:vendor', 'copy:scripts', 'copy:styles', 'usebanner',
+    'jekyll']
   grunt.registerTask 'test', ['coffee:moduleSpec', 'coffee:buttonSpec', 'jasmine']
-  grunt.registerTask 'package', ['clean:package', 'copy:package', 'uglify:simditor', 'compress']
+  grunt.registerTask 'package', ['clean:package', 'copy:package', 'compress']
 
   grunt.registerTask 'fonticons', ['curl']

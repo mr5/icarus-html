@@ -14,7 +14,7 @@
   }
 }(this, function ($, SimpleModule, simpleHotkeys, simpleUploader) {
 
-var AlignCenterButton, AlignLeftButton, AlignRightButton, AlignmentButton, BlockquoteButton, BoldButton, Button, Clipboard, CodeButton, CodePopover, ColorButton, FontScaleButton, Formatter, HrButton, HtmlButton, ImageButton, ImagePopover, IndentButton, Indentation, InputManager, ItalicButton, Keystroke, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, StrikethroughButton, TableButton, TitleButton, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util,
+var AlignCenterButton, AlignLeftButton, AlignRightButton, AlignmentButton, BlockquoteButton, BoldButton, Button, Clipboard, CodeButton, CodePopover, ColorButton, FontScaleButton, Formatter, HrButton, HtmlButton, ImageButton, ImagePopover, IndentButton, Indentation, InputManager, ItalicButton, Keystroke, LinkButton, LinkPopover, ListButton, OrderListButton, OutdentButton, Popover, Selection, Simditor, SimditorMention, StrikethroughButton, TableButton, TitleButton, Toolbar, UnderlineButton, UndoManager, UnorderListButton, Util,
   extend = function(child, parent) { for (var key in parent) { if (hasProp.call(parent, key)) child[key] = parent[key]; } function ctor() { this.constructor = child; } ctor.prototype = parent.prototype; child.prototype = new ctor(); child.__super__ = parent.prototype; return child; },
   hasProp = {}.hasOwnProperty,
   indexOf = [].indexOf || function(item) { for (var i = 0, l = this.length; i < l; i++) { if (i in this && this[i] === item) return i; } return -1; },
@@ -2468,7 +2468,7 @@ Simditor = (function(superClass) {
   Simditor.prototype.opts = {
     textarea: null,
     placeholder: '',
-    defaultImage: 'assets/images/image.png',
+    defaultImage: 'images/image.png',
     params: {},
     upload: false,
     indentWidth: 40
@@ -3063,6 +3063,248 @@ Button = (function(superClass) {
 
 Simditor.Button = Button;
 
+SimditorMention = (function(superClass) {
+  extend(SimditorMention, superClass);
+
+  function SimditorMention() {
+    return SimditorMention.__super__.constructor.apply(this, arguments);
+  }
+
+  SimditorMention.pluginName = 'Mention';
+
+  SimditorMention.prototype.opts = {
+    mention: false
+  };
+
+  SimditorMention.prototype.active = false;
+
+  SimditorMention.prototype._init = function() {
+    this.editor = this._module;
+    return this._bind();
+  };
+
+  SimditorMention.prototype._bind = function() {
+    this.editor.on('decorate', (function(_this) {
+      return function(e, $el) {
+        return $el.find('a[data-mention]').each(function(i, link) {
+          return _this.decorate($(link));
+        });
+      };
+    })(this));
+    this.editor.on('undecorate', (function(_this) {
+      return function(e, $el) {
+        $el.find('a[data-mention]').each(function(i, link) {
+          return _this.undecorate($(link));
+        });
+        return $el.find('simditor-mention').children().unwrap();
+      };
+    })(this));
+    this.editor.on('pushundostate', (function(_this) {
+      return function(e) {
+        if (_this.editor.body.find('span.simditor-mention').length > 0) {
+          return false;
+        }
+        return e.result;
+      };
+    })(this));
+    this.editor.on('keydown', (function(_this) {
+      return function(e) {
+        if (e.which !== 229) {
+          return;
+        }
+        return setTimeout(function() {
+          var range;
+          range = _this.editor.selection.range();
+          if (!((range != null) && range.collapsed)) {
+            return;
+          }
+          range = range.cloneRange();
+          range.setStart(range.startContainer, Math.max(range.startOffset - 1, 0));
+          if (range.toString() === '@' && !_this.active) {
+            return _this.editor.trigger($.Event('keypress', {
+              which: 64
+            }));
+          }
+        }, 50);
+      };
+    })(this));
+    this.editor.on('keypress', (function(_this) {
+      return function(e) {
+        var $closestBlock;
+        if (e.which !== 64) {
+          return;
+        }
+        $closestBlock = _this.editor.selection.blockNodes().last();
+        if ($closestBlock.is('pre')) {
+          return;
+        }
+        return setTimeout(function() {
+          var range;
+          range = _this.editor.selection.range();
+          if (range == null) {
+            return;
+          }
+          range = range.cloneRange();
+          range.setStart(range.startContainer, Math.max(range.startOffset - 2, 0));
+          if (/^[A-Za-z0-9]@/.test(range.toString())) {
+            return;
+          }
+          return _this.show();
+        }, 50);
+      };
+    })(this));
+    this.editor.on('keydown.simditor-mention', $.proxy(this._onKeyDown, this)).on('keyup.simditor-mention', $.proxy(this._onKeyUp, this));
+    return this.editor.on('blur', (function(_this) {
+      return function() {
+        if (_this.active) {
+          return _this.hide();
+        }
+      };
+    })(this));
+  };
+
+  SimditorMention.prototype.show = function($target) {
+    var range;
+    this.active = true;
+    if ($target) {
+      this.target = $target;
+    } else {
+      this.target = $('<span class="simditor-mention" />');
+      range = this.editor.selection.range();
+      range.setStart(range.startContainer, range.endOffset - 1);
+      range.surroundContents(this.target[0]);
+    }
+    this.editor.selection.setRangeAtEndOf(this.target, range);
+    this.popoverEl.find('.item:first').addClass('selected').siblings('.item').removeClass('selected');
+    this.popoverEl.show();
+    this.popoverEl.find('.item').show();
+    return this.refresh();
+  };
+
+  SimditorMention.prototype.decorate = function($link) {
+    return $link.addClass('simditor-mention');
+  };
+
+  SimditorMention.prototype.undecorate = function($link) {
+    return $link.removeClass('simditor-mention');
+  };
+
+  SimditorMention.prototype.selectItem = function() {
+    var $itemLink, $selectedItem, data, href, range, spaceNode;
+    $selectedItem = this.popoverEl.find('.item.selected');
+    if (!($selectedItem.length > 0)) {
+      return;
+    }
+    data = $selectedItem.data('item');
+    href = data.url || "javascript:;";
+    $itemLink = $('<a/>', {
+      'class': 'simditor-mention',
+      text: '@' + $selectedItem.attr('data-name'),
+      href: href,
+      'data-mention': true
+    });
+    this.target.replaceWith($itemLink);
+    this.editor.trigger("mention", [$itemLink, data]);
+    if (this.opts.mention.linkRenderer) {
+      this.opts.mention.linkRenderer($itemLink, data);
+    }
+    if (this.target.hasClass('edit')) {
+      this.editor.selection.setRangeAfter($itemLink);
+    } else {
+      spaceNode = document.createTextNode('\u00A0');
+      $itemLink.after(spaceNode);
+      range = document.createRange();
+      this.editor.selection.setRangeAtEndOf(spaceNode, range);
+    }
+    return this.hide();
+  };
+
+  SimditorMention.prototype._changeFocus = function(type) {
+    var itemEl, itemH, parentEl, parentH, position, selectedItem;
+    selectedItem = this.popoverEl.find('.item.selected');
+    if (selectedItem.length < 1) {
+      this.popoverEl.find('.item:first'.addClass('selected'));
+      return false;
+    }
+    itemEl = selectedItem[type + 'All']('.item:visible').first();
+    if (itemEl.length < 1) {
+      return false;
+    }
+    selectedItem.removeClass('selected');
+    itemEl.addClass('selected');
+    parentEl = itemEl.parent();
+    parentH = parentEl.height();
+    position = itemEl.position();
+    itemH = itemEl.outerHeight();
+    if (position.top > parentH - itemH) {
+      parentEl.scrollTop(itemH * itemEl.prevAll('.item:visible').length - parentH + itemH);
+    }
+    if (position.top < 0) {
+      return parentEl.scrollTop(itemH * itemEl.prevAll('.item:visible').length);
+    }
+  };
+
+  SimditorMention.prototype._onKeyDown = function(e) {
+    var node, selectedItem, text;
+    if (!this.active) {
+      return;
+    }
+    if (e.which === 37 || e.which === 39 || e.which === 27) {
+      this.editor.selection.save();
+      this.hide();
+      this.editor.selection.restore();
+      return false;
+    } else if (e.which === 38 || (e.which === 80 && e.ctrlKey)) {
+      this._changeFocus('prev');
+      return false;
+    } else if (e.which === 40 || (e.which === 78 && e.ctrlKey)) {
+      this._changeFocus('next');
+      return false;
+    } else if (e.which === 13 || e.which === 9) {
+      selectedItem = this.popoverEl.find('.item.selected');
+      if (selectedItem.length) {
+        this.selectItem();
+        return false;
+      } else {
+        node = document.createTextNode(this.target.text());
+        this.target.before(node).remove();
+        this.hide();
+        return this.editor.selection.setRangeAtEndOf(node);
+      }
+    } else if (e.which === 8 && (this.target.text() === '@' || this.target.text() === '')) {
+      node = document.createTextNode('@');
+      this.target.replaceWith(node);
+      this.hide();
+      return this.editor.selection.setRangeAtEndOf(node);
+    } else if (e.which === 32) {
+      text = this.target.text();
+      selectedItem = this.popoverEl.find('.item.selected');
+      if (selectedItem.length && (text.substr(1) === selectedItem.text().trim())) {
+        this.selectItem();
+      } else {
+        node = document.createTextNode(text + '\u00A0');
+        this.target.before(node).remove();
+        this.hide();
+        this.editor.selection.setRangeAtEndOf(node);
+      }
+      return false;
+    }
+  };
+
+  SimditorMention.prototype._onKeyUp = function(e) {
+    if (!this.active || $.inArray(e.which, [9, 16, 17, 27, 37, 38, 39, 40]) > -1 || (e.shiftKey && e.which === 50) || (e.ctrlKey && (e.which === 78 || e.which === 80))) {
+      return;
+    }
+    this.filterItem();
+    return this.refresh();
+  };
+
+  return SimditorMention;
+
+})(SimpleModule);
+
+Simditor.connect(SimditorMention);
+
 Popover = (function(superClass) {
   extend(Popover, superClass);
 
@@ -3310,19 +3552,23 @@ HtmlButton = (function(superClass) {
   };
 
   HtmlButton.prototype.insertHtml = function(html) {
-    var $brNode, $newBlock, $node, range;
+    var $node, range;
     range = this.editor.selection.range();
     console.log("insertHtml", range);
-    $node = $(html);
-    if (this.editor.selection.blockNodes().length > 0) {
-      range.insertNode($node[0]);
-    } else {
-      $newBlock = $('<p/>').append($node);
-      range.insertNode($newBlock[0]);
+    if (range === null) {
+      this.editor.setValue(this.editor.sync() + html);
+      this.editor.trigger('valuechanged');
+      return;
     }
-    $brNode = $('<br>')[0];
-    range.insertNode($brNode);
-    return range.selectNode($brNode);
+    if (this.editor.selection.blockNodes !== void 0 && this.editor.selection.blockNodes().length > 0) {
+      $node = $('<span></span>').html(html);
+    } else {
+      $node = $('<p></p>').html(html);
+    }
+    range.insertNode($node[0]);
+    range.setStart($node[0], 1);
+    this.editor.selection.range(range);
+    return this.editor.trigger('valuechanged');
   };
 
   HtmlButton.prototype.command = function() {
@@ -3330,11 +3576,9 @@ HtmlButton = (function(superClass) {
     callback_id = this.editor.addCallback(this, function(params) {
       return this.insertHtml(params.content);
     });
-    IcarusBridge.popover(this.name, JSON.stringify({
+    return IcarusBridge.popover(this.name, JSON.stringify({
       content: ""
     }), callback_id);
-    this.editor.focus();
-    return this.editor.trigger('valuechanged');
   };
 
   return HtmlButton;

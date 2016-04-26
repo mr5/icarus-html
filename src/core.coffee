@@ -17,7 +17,7 @@ class Simditor extends SimpleModule
   opts:
     textarea: null
     placeholder: ''
-    defaultImage: 'assets/images/image.png'
+    defaultImage: 'images/image.png'
     params: {}
     upload: false
     indentWidth: 40

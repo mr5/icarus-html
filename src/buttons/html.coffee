@@ -13,15 +13,21 @@ class HtmlButton extends Button
   insertHtml: (html)->
     range = @editor.selection.range()
     console.log("insertHtml", range);
-    $node = $(html)
-    if @editor.selection.blockNodes().length > 0
-      range.insertNode $node[0]
+    if range is null
+      @editor.setValue(@editor.sync() + html)
+      @editor.trigger 'valuechanged'
+      return
+
+
+    if @editor.selection.blockNodes != undefined and @editor.selection.blockNodes().length > 0
+      $node = $('<span></span>').html(html);
     else
-      $newBlock = $('<p/>').append($node)
-      range.insertNode $newBlock[0]
-    $brNode = $('<br>')[0]
-    range.insertNode $brNode
-    range.selectNode $brNode
+      $node = $('<p></p>').html(html);
+
+    range.insertNode $node[0]
+    range.setStart($node[0], 1)
+    @editor.selection.range range
+    @editor.trigger 'valuechanged'
   command: ()->
     callback_id = @editor.addCallback @, (params)->
       @insertHtml params.content
@@ -30,19 +36,17 @@ class HtmlButton extends Button
         content: ""
       callback_id
 
-    #@popover.one 'popovershow', =>
-    #  if linkText
-    #    @popover.urlEl.focus()
-    #    @popover.urlEl[0].select()
-    #  else
-    #    @popover.textEl.focus()
-    #    @popover.textEl[0].select()
+#@popover.one 'popovershow', =>
+#  if linkText
+#    @popover.urlEl.focus()
+#    @popover.urlEl[0].select()
+#  else
+#    @popover.textEl.focus()
+#    @popover.textEl[0].select()
 
-    #@editor.selection.range range
+#@editor.selection.range range
 
-    #@editor.selection.set();
-    @editor.focus()
-    @editor.trigger 'valuechanged'
+#@editor.selection.set();
 
 
 Simditor.Toolbar.addButton HtmlButton
