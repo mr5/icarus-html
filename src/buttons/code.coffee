@@ -7,7 +7,7 @@ class CodeButton extends Button
 
   htmlTag: 'pre'
 
-  disableTag: 'ul, ol, table, pre, hr'
+  disableTag: 'ul, ol, table, hr'
 
   _init: ->
     super()
