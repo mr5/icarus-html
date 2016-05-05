@@ -55,19 +55,43 @@ class LinkButton extends Button
     else
       $contents = $(range.extractContents())
       linkText = @editor.formatter.clearHtml($contents.contents(), false)
-      $link = $('<a/>', {
-        href: 'http://www.example.com',
-        target: '_blank',
-        text: linkText || @_t('linkText')
-      })
+      if !linkText
 
-      if @editor.selection.blockNodes().length > 0
-        range.insertNode $link[0]
+        callback_id = @editor.addCallback this, (params)->
+          $link = $('<a/>', params.attributes)
+          $link.text params.text
+
+          if @editor.selection.blockNodes().length > 0
+            range.insertNode $link[0]
+          else
+            $newBlock = $('<p/>').append($link)
+            range.insertNode $newBlock[0]
+
+          range.selectNodeContents $link[0]
+
+          @editor.trigger 'valuechanged'
+          @editor.removeCallback(callback_id)
       else
-        $newBlock = $('<p/>').append($link)
-        range.insertNode $newBlock[0]
+        $link = $('<a/>', {})
+        $link.text linkText
+        if @editor.selection.blockNodes().length > 0
+          range.insertNode $link[0]
+        else
+          $newBlock = $('<p/>').append($link)
+          range.insertNode $newBlock[0]
 
-      range.selectNodeContents $link[0]
+        range.selectNodeContents $link[0]
+        callback_id = @editor.addCallback this, (params)->
+          @_setAttributes($link, params.attributes)
+          $link.text params.text
+          @editor.inputManager.throttledValueChanged()
+          @editor.removeCallback(callback_id)
+
+      IcarusBridge.popover @name,
+        JSON.stringify
+          text: linkText || ''
+          attributes: {}
+        callback_id
 
     #@popover.one 'popovershow', =>
     #  if linkText
@@ -76,7 +100,6 @@ class LinkButton extends Button
     #  else
     #    @popover.textEl.focus()
     #    @popover.textEl[0].select()
-
     @editor.selection.range range
     @editor.trigger 'valuechanged'
 
